@@ -12,7 +12,7 @@ namespace Dappir
 {
     public interface IModel { }
 
-    public static class DappirHelper
+    public static class DappirHelperExtensions
     {
         #region Sql Command from model
 
