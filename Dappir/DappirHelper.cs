@@ -4,7 +4,9 @@ using System.Data.Linq.Mapping;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-
+using System.Data;
+using Dapper;
+using System.Runtime.Serialization;
 
 namespace Dappir
 {
@@ -12,7 +14,6 @@ namespace Dappir
 
     public static class DappirHelper
     {
-
         const string SELECT_ONE_string = " SELECT * FROM {0} WHERE {1} = @{2} ";
         const string SELECT_ALL_string = " SELECT * FROM {0} ";
         const string INSERT_string = " INSERT INTO {0} ({1}) VALUES ({2}); SELECT SCOPE_IDENTITY() ";
@@ -194,5 +195,7 @@ namespace Dappir
             var sql = ToSqlForSelectAll<TModel>();
             return transaction.Connection.Query<TModel>(sql, null, transaction: transaction);
         }
+
+        #endregion
     }
 }
