@@ -6,6 +6,8 @@ Features
 Dappir contains a number of helper methods for inserting, getting,
 updating and deleting records and on cascade too \o/.
 
+You remember of Contrib, ow yeah, its true, but is not, haha!!!
+
 This is for SQL SERVER still, but we want them for all data bases. do you want help us, do fork now.
 
 The full list of extension methods in Dappir on 'IDbTransaction' right now are:
@@ -20,6 +22,9 @@ public interface IModel { }
 void Insert<TModel>(TModel entity);
 void InsertAll<TModel>(IEnumerable<TModel> listEntity);
 void InsertOnCascade<TModel>(TModel entity);
+
+IEnumerable<TModel> Select<TModel>( object filterDynamic);
+TModel Select<TModel>(int key);
 
 //##aasf86 stop here
 
