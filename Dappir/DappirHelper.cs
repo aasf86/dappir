@@ -14,6 +14,8 @@ namespace Dappir
 
     public static class DappirHelper
     {
+        #region Sql Command from model
+
         const string SELECT_ONE_string = " SELECT * FROM {0} WHERE {1} = @{2} ";
         const string SELECT_ALL_string = " SELECT * FROM {0} ";
         const string INSERT_string = " INSERT INTO {0} ({1}) VALUES ({2}); SELECT SCOPE_IDENTITY() ";
@@ -40,8 +42,24 @@ namespace Dappir
         private static string GetNamePrimaryKey(this IModel model)
         {
             var propertyPrimaryKey = model.GetType().GetProperties().Where(x => x.GetCustomAttributes(true).ToList().Exists(z => { return z is ColumnAttribute && (z as ColumnAttribute).IsPrimaryKey; })).FirstOrDefault();
-            if (propertyPrimaryKey == null) return "";
+            if (propertyPrimaryKey == null)
+                throw new InvalidOperationException("Primary key não foi definida => [Column(IsPrimaryKey = true)]");
             return propertyPrimaryKey.Name;
+        }
+
+        private static int GetValuePrimaryKey(this IModel model)
+        {
+            var propertyPrimaryKey = model.GetType().GetProperties().Where(x => x.GetCustomAttributes(true).ToList().Exists(z => { return z is ColumnAttribute && (z as ColumnAttribute).IsPrimaryKey; })).FirstOrDefault();
+            if (propertyPrimaryKey == null)
+                throw new InvalidOperationException("Primary key não foi definida => [Column(IsPrimaryKey = true)]");
+            return (int)propertyPrimaryKey.GetValue(model, null);
+        }
+
+        private static void SetValue(this IModel model, string propertyName, object value)
+        {
+            var property = model.GetType().GetProperties().Where(x => x.Name == propertyName).FirstOrDefault();
+            if (property == null) return;
+            property.SetValue(model, value, null);
         }
 
         public static string ToSqlForSelectOne<TModel>() where TModel : IModel
@@ -135,7 +153,7 @@ namespace Dappir
             }
         }
 
-        public static IEnumerable<TModel> Find<TModel>(this IDbTransaction transaction, object filterDynamic) where TModel : IModel
+        public static IEnumerable<TModel> Select<TModel>(this IDbTransaction transaction, object filterDynamic) where TModel : IModel
         {
             var sql = ToSqlForSelectAll<TModel>();
             var sqlFilter = "";
@@ -154,7 +172,7 @@ namespace Dappir
             return transaction.Connection.Query<TModel>(sql + sqlFilter, filterDynamic, transaction: transaction);
         }
 
-        public static TModel Find<TModel>(this IDbTransaction transaction, int key) where TModel : IModel
+        public static TModel Select<TModel>(this IDbTransaction transaction, int key) where TModel : IModel
         {
             var sql = ToSqlForSelectOne<TModel>();
             var entity = Activator.CreateInstance<TModel>();
@@ -176,6 +194,14 @@ namespace Dappir
             }
         }
 
+        public static void Delete<TModel>(this IDbTransaction transaction, int key) where TModel : IModel
+        {
+            var entity = Activator.CreateInstance<TModel>();
+            var sql = entity.ToSqlForDelete();
+            entity.SetValuePrimaryKey(key);
+            transaction.Delete(entity);
+        }
+
         public static void Delete<TModel>(this IDbTransaction transaction, TModel entity) where TModel : IModel
         {
             var sql = entity.ToSqlForDelete();
@@ -195,6 +221,188 @@ namespace Dappir
             var sql = ToSqlForSelectAll<TModel>();
             return transaction.Connection.Query<TModel>(sql, null, transaction: transaction);
         }
+
+        public static void InsertOnCascade<TModel>(this IDbTransaction transaction, TModel entity) where TModel : IModel
+        {
+            transaction.Insert(entity);
+
+            var listProperties = entity.GetType().GetProperties().ToList().Where(x => x.GetSetMethod().IsVirtual && x.GetCustomAttributes(true).ToList().Where(z => z is AssociationAttribute).ToList().Count > 0).ToList();
+
+            foreach (var itemProperty in listProperties)
+            {
+                var itemValueProperty = itemProperty.GetValue(entity, null);
+
+                if (itemValueProperty is IModel)
+                {
+                    var itemModel = itemValueProperty as IModel;
+                    var primaryKeyParent = entity.GetNamePrimaryKey();
+                    itemModel.SetValue(primaryKeyParent, entity.GetValuePrimaryKey());
+                    transaction.InsertOnCascade(itemModel);
+                    continue;
+                }
+
+                if (itemValueProperty is IEnumerable<IModel>)
+                {
+                    var itensModel = itemValueProperty as IEnumerable<IModel>;
+
+                    foreach (var item in itensModel)
+                    {
+                        var itemModel = item as IModel;
+                        var primaryKeyParent = entity.GetNamePrimaryKey();
+                        itemModel.SetValue(primaryKeyParent, entity.GetValuePrimaryKey());
+                        transaction.InsertOnCascade(itemModel);
+                    }
+                }
+            }
+        }
+
+        public static void UpdateOnCascade<TModel>(this IDbTransaction transaction, TModel entity) where TModel : IModel
+        {
+            transaction.Update(entity);
+
+            var listProperties = entity.GetType().GetProperties().ToList().Where(x => x.GetSetMethod().IsVirtual && x.GetCustomAttributes(true).ToList().Where(z => z is AssociationAttribute).ToList().Count > 0).ToList();
+
+            foreach (var itemProperty in listProperties)
+            {
+                var itemValueProperty = itemProperty.GetValue(entity, null);
+
+                if (itemValueProperty is IModel)
+                {
+                    var itemModel = itemValueProperty as IModel;
+                    var primaryKeyParent = entity.GetNamePrimaryKey();
+                    itemModel.SetValue(primaryKeyParent, entity.GetValuePrimaryKey());
+
+                    if (itemModel.GetValuePrimaryKey() == 0)
+                        transaction.InsertOnCascade(itemModel);
+                    else
+                        transaction.UpdateOnCascade(itemModel);
+                    continue;
+                }
+
+                if (itemValueProperty is IEnumerable<IModel>)
+                {
+                    var itensModel = itemValueProperty as IEnumerable<IModel>;
+                    var idsDontRemove = "";
+                    IModel modeItemList = null;
+
+                    foreach (var item in itensModel)
+                    {
+                        var itemModel = item as IModel;
+                        var primaryKeyParent = entity.GetNamePrimaryKey();
+                        itemModel.SetValue(primaryKeyParent, entity.GetValuePrimaryKey());
+                        if (itemModel.GetValuePrimaryKey() == 0)
+                            transaction.InsertOnCascade(itemModel);
+                        else
+                            transaction.UpdateOnCascade(itemModel);
+
+                        idsDontRemove += item.GetValuePrimaryKey() + ",";
+                        modeItemList = item;
+                    }
+
+                    var sql = string.Format(DELETE_ALL_string, GetNameTable(modeItemList.GetType()))
+                        + " where "
+                        + entity.GetNamePrimaryKey()
+                        + " = "
+                        + entity.GetValuePrimaryKey()
+                        + " and  "
+                        + modeItemList.GetNamePrimaryKey()
+                        + " not in (" + idsDontRemove.TrimEnd(',') + ")";
+
+                    transaction.Connection.Execute(sql, null, transaction: transaction);
+                }
+            }
+        }
+
+        public static TModel SelectOnCascade<TModel>(this IDbTransaction transaction, int key) where TModel : IModel
+        {
+            var entity = transaction.Select<TModel>(key);
+            return transaction.SelectOnCascade(entity);
+        }
+
+        private static TModel SelectOnCascade<TModel>(this IDbTransaction transaction, TModel entity) where TModel : IModel
+        {
+            var listProperties = entity.GetType().GetProperties().ToList().Where(x => x.GetSetMethod().IsVirtual && x.GetCustomAttributes(true).ToList().Where(z => z is AssociationAttribute).ToList().Count > 0).ToList();
+
+            foreach (var itemProperty in listProperties)
+            {
+                var itemValueProperty = itemProperty.GetValue(entity, null) ?? Activator.CreateInstance(itemProperty.PropertyType);
+
+                if (itemValueProperty is IModel)
+                {
+                    var itemModel = itemValueProperty as IModel;
+                    var primaryKeyParent = entity.GetNamePrimaryKey();
+                    var sql = string.Format(SELECT_ONE_string, GetNameTable(itemModel.GetType()), primaryKeyParent, primaryKeyParent);
+                    itemModel = transaction.Connection.Query(itemModel.GetType(), sql, entity, transaction: transaction, buffered: true, commandTimeout: null, commandType: null).SingleOrDefault() as IModel;
+                    if (itemModel != null) entity.SetValue(itemProperty.Name, transaction.SelectOnCascade(itemModel));
+                    continue;
+                }
+
+                if (itemValueProperty is IEnumerable<IModel>)
+                {
+                    var itensModel = itemValueProperty as IEnumerable<IModel>;
+                    var type = itensModel.GetType().GetGenericArguments()[0];
+                    var itemModel = Activator.CreateInstance(type) as IModel;
+                    var primaryKeyParent = entity.GetNamePrimaryKey();
+                    var sql = string.Format(SELECT_ONE_string, GetNameTable(itemModel.GetType()), primaryKeyParent, primaryKeyParent);
+                    var list = transaction.Connection.Query(itemModel.GetType(), sql, entity, transaction: transaction, buffered: true, commandTimeout: null, commandType: null);
+
+                    if (list != null)
+                    {
+                        foreach (var item in list)
+                        {
+                            var itemValueDb = item as IModel;
+                            transaction.SelectOnCascade(itemValueDb);
+                            itemValueProperty.GetType().InvokeMember("Add", BindingFlags.InvokeMethod, null, itemValueProperty, new object[] { itemValueDb });
+                        }
+                    }
+                }
+            }
+
+            return entity;
+        }
+
+        public static void DeleteOnCascade<TModel>(this IDbTransaction transaction, int key) where TModel : IModel
+        {
+            var entity = transaction.SelectOnCascade<TModel>(key);
+            transaction.DeleteOnCascade(entity);
+            transaction.Delete(entity);
+        }
+
+        private static void DeleteOnCascade<TModel>(this IDbTransaction transaction, TModel entity) where TModel : IModel
+        {
+            var listProperties = entity.GetType().GetProperties().ToList().Where(x => x.GetSetMethod().IsVirtual && x.GetCustomAttributes(true).ToList().Where(z => z is AssociationAttribute).ToList().Count > 0).ToList();
+
+            if (listProperties.Count == 0)
+            {
+                transaction.Delete(entity);
+            }
+            else
+            {
+                foreach (var itemProperty in listProperties)
+                {
+                    var itemValueProperty = itemProperty.GetValue(entity, null) ?? Activator.CreateInstance(itemProperty.PropertyType);
+
+                    if (itemValueProperty is IModel)
+                    {
+                        var itemModel = itemValueProperty as IModel;
+                        transaction.DeleteOnCascade(itemModel);
+                        continue;
+                    }
+
+                    if (itemValueProperty is IEnumerable<IModel>)
+                    {
+                        var itensModel = itemValueProperty as IEnumerable<IModel>;
+
+                        foreach (var item in itensModel)
+                        {
+                            transaction.DeleteOnCascade(item);
+                        }
+                    }
+                }
+            }
+        }
+
+        #endregion
 
         #endregion
     }
