@@ -43,7 +43,7 @@ namespace Dappir
         {
             var propertyPrimaryKey = model.GetType().GetProperties().Where(x => x.GetCustomAttributes(true).ToList().Exists(z => { return z is ColumnAttribute && (z as ColumnAttribute).IsPrimaryKey; })).FirstOrDefault();
             if (propertyPrimaryKey == null)
-                throw new InvalidOperationException("Primary key não foi definida => [Column(IsPrimaryKey = true)]");
+                throw new InvalidOperationException("Primary key dont defined => [Column(IsPrimaryKey = true)]");
             return propertyPrimaryKey.Name;
         }
 
@@ -51,7 +51,7 @@ namespace Dappir
         {
             var propertyPrimaryKey = model.GetType().GetProperties().Where(x => x.GetCustomAttributes(true).ToList().Exists(z => { return z is ColumnAttribute && (z as ColumnAttribute).IsPrimaryKey; })).FirstOrDefault();
             if (propertyPrimaryKey == null)
-                throw new InvalidOperationException("Primary key não foi definida => [Column(IsPrimaryKey = true)]");
+                throw new InvalidOperationException("Primary key dont defined => [Column(IsPrimaryKey = true)]");
             return (int)propertyPrimaryKey.GetValue(model, null);
         }
 
@@ -81,6 +81,7 @@ namespace Dappir
 
         public static string ToSqlForInsert(this IModel model)
         {
+            model.GetNamePrimaryKey();
             if (model == null) return null;
             var type = model.GetType();
             var attrTable = type.GetCustomAttributes(true).SingleOrDefault(x => x is TableAttribute) as TableAttribute;
@@ -101,6 +102,7 @@ namespace Dappir
 
         public static string ToSqlForUpdate(this IModel model)
         {
+            model.GetNamePrimaryKey();
             if (model == null) return null;
             var type = model.GetType();
             var properties = type.GetColumnWithOutKey();
@@ -113,8 +115,8 @@ namespace Dappir
 
         public static string ToSqlForDelete(this IModel model)
         {
+            model.GetNamePrimaryKey();
             if (model == null) return null;
-
             var type = model.GetType();
             var tabela = GetNameTable(type);
             var keyName = model.GetNamePrimaryKey();
@@ -282,7 +284,7 @@ namespace Dappir
                 if (itemValueProperty is IEnumerable<IModel>)
                 {
                     var itensModel = itemValueProperty as IEnumerable<IModel>;
-                    var idsDontRemove = "";
+                    var idsDontRemove = "0,";
                     IModel modeItemList = null;
 
                     foreach (var item in itensModel)
