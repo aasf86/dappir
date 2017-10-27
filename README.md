@@ -200,7 +200,7 @@ transaction.UpdateOnCascade(car);
 Delete an entity by the specified `[Column(IsPrimaryKey = true)]` property
 
 ```csharp
-transaction.Delete(new Car() { Id = 1 });
+transaction.Delete(new Car() { CarId = 1 });
 ```
 
 ```csharp
