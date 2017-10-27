@@ -1,6 +1,10 @@
 Dappir - more extensions for dapper
 ===========================================
 
+`=>`This is a small tribute to our developer department DAPI, because the name Dappir: Dapper + Dapi = Dappir. [DAPI](http://wikicti.tjmt.jus.br/index.php/Departamento_de_Sistemas_e_Aplica%C3%A7%C3%B5es_-_DSA)
+
+--
+
 Features
 --------
 Dappir contains a number of helper methods for inserting, getting,
