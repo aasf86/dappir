@@ -17,69 +17,110 @@ The full list of extension methods in Dappir on 'IDbTransaction' right now are:
 //we are using this litle interface for facibily, all methods have this interface like constraint
 public interface IModel { }
 
-//now we are methods
+//now we have this methods
 
+//inserts
 void Insert<TModel>(TModel entity);
 void InsertAll<TModel>(IEnumerable<TModel> listEntity);
 void InsertOnCascade<TModel>(TModel entity);
 
-IEnumerable<TModel> Select<TModel>( object filterDynamic);
+//selects
+IEnumerable<TModel> SelectAll<TModel>();
+IEnumerable<TModel> Select<TModel>(object filterDynamic);
 TModel Select<TModel>(int key);
+TModel SelectOnCascade<TModel>(int key);
 
-//##aasf86 stop here
+//updates
+void Update<TModel>(TModel entity);
+void UpdateAll<TModel>(IEnumerable<TModel> listEntity);
+void UpdateOnCascade<TModel>(TModel entity);
 
-IEnumerable<T> GetAll<T>();
-int Insert<T>(T obj);
-int Insert<T>(Enumerable<T> list);
-bool Update<T>(T obj);
-bool Update<T>(Enumerable<T> list);
-bool Delete<T>(T obj);
-bool Delete<T>(Enumerable<T> list);
-bool DeleteAll<T>();
+//deletes
+void Delete<TModel>(int key);
+void Delete<TModel>(TModel entity);
+void DeleteAll<TModel>(IEnumerable<TModel> listEntity);
+void DeleteOnCascade<TModel>(int key);
+
 ```
 
 For these extensions to work, the entity in question _MUST_ have a
-key property. Dapper will automatically use a property named "`id`" 
-(case-insensitive) as the key property, if one is present.
+key property decorate with [Column(IsPrimaryKey = true)].
 
 ```csharp
 public class Car
 {
-    public int Id { get; set; } // Works by convention
+    [Column(IsPrimaryKey = true)]
+    public int CarId { get; set; }
     public string Name { get; set; }
 }
 ```
 
-If the entity doesn't follow this convention, decorate 
-a specific property with a `[Key]` or `[ExplicitKey]` attribute.
+For your entity working with cascade, you must decorate yours property on `[Association]`.
 
 ```csharp
-public class User
+public class Car
 {
-    [Key]
-    int TheId { get; set; }
-    string Name { get; set; }
-    int Age { get; set; }
+    [Column(IsPrimaryKey = true)]
+    public int CarId { get; set; }
+    public string Name { get; set; }
+    
+    [Association]
+    public Carmaker Maker { get; set; }
+
+    [Association]
+    public List<Dealership> Dealerships { get; set; }
 }
+
+public class Carmaker
+{
+    [Column(IsPrimaryKey = true)]
+    public int CarmakerId { get; set; }
+    public int CarId { get; set; }
+    public string Name { get; set; }
+}
+
+public class Dealership
+{
+    [Column(IsPrimaryKey = true)]
+    public int DealershipsId { get; set; }
+    public int CarId { get; set; }
+    public string Name { get; set; }
+}
+
 ```
 
-`[Key]` should be used for database-generated keys (e.g. autoincrement columns), 
-while `[ExplicitKey]` should be used for explicit keys generated in code.
+`CarId` Look this is the relationship between entities.
 
-`Get` methods
+`Select` methods
 -------
 
 Get one specific entity based on id
 
 ```csharp
-var car = connection.Get<Car>(1);
+var car = transaction.Select<Car>(1);
+
+var carmaker = transaction.Select<Carmaker>(1);
+
+var listDealerships = transaction.Select<Dealership>(new { CarId = 1 });
 ```
 
 or a list of all entities in the table.
 
 ```csharp
-var cars = connection.GetAll<Car>();
+var listDealerships = transaction.SelectAll<DealershipCar>();
 ```
+
+or still you can select on cascade, look that:
+
+```csharp
+var car = transaction.SelectOnCascade<Car>(1);
+
+var carmaker = car.Maker;
+
+var listDealerships = car.Dealerships;
+```
+
+`\o/ its amazing` Yeah, cascade is very nice.
 
 `Insert` methods
 -------
@@ -87,15 +128,49 @@ var cars = connection.GetAll<Car>();
 Insert one entity
 
 ```csharp
-connection.Insert(new Car { Name = "Volvo" });
-```
+var car = new Car { Name = "520" };
+car.Maker = new Carmaker { "Volvo" };
+car.Dealerships = new List<Dealership> { new Dealership { Name = "Veronica Vehicles" }, new Dealership { Name = "Heavy Loader Trucks" } };
 
+transaction.Insert(car);
+
+car.Maker.CarId = car.CarId;
+
+transaction.Insert(car.Maker);
+
+car.Dealerships.ForEach(x =>
+{
+    x.CarId = car.CarId;
+    transaction.Insert(x);
+})
+```
 or a list of entities.
 
 ```csharp
-connection.Insert(cars);
+var car = new Car { Name = "520" };
+car.Maker = new Carmaker { "Volvo" };
+car.Dealerships = new List<Dealership> { new Dealership { Name = "Veronica Vehicles" }, new Dealership { Name = "Heavy Loader Trucks" } };
+
+transaction.Insert(car);
+
+car.Maker.CarId = car.CarId;
+
+transaction.Insert(car.Maker);
+
+car.Dealerships.ForEach(x => x.CarId = car.CarId);
+
+transaction.InsertAll(car.Dealerships);
 ```
 
+or insert with cascade, more easy:
+
+```csharp
+var car = new Car { Name = "520" };
+car.Maker = new Carmaker { "Volvo" };
+car.Dealerships = new List<Dealership> { new Dealership { Name = "Veronica Vehicles" }, new Dealership { Name = "Heavy Loader Trucks" } };
+
+transaction.InsertOnCascade(car);
+```
 
 
 `Update` methods
@@ -103,38 +178,50 @@ connection.Insert(cars);
 Update one specific entity
 
 ```csharp
-connection.Update(new Car() { Id = 1, Name = "Saab" });
+transaction.Update(new Car() { CarId = 1, Name = "Saab" });
 ```
 
 or update a list of entities.
 
 ```csharp
-connection.Update(cars);
+transaction.UpdateAll(cars);
+```
+
+and ofcourse, cascade.
+
+```csharp
+transaction.UpdateOnCascade(car);
 ```
 
 `Delete` methods
 -------
-Delete an entity by the specified `[Key]` property
+Delete an entity by the specified `[Column(IsPrimaryKey = true)]` property
 
 ```csharp
-connection.Delete(new Car() { Id = 1 });
+transaction.Delete(new Car() { Id = 1 });
+```
+
+```csharp
+transaction.Delete<Car>(1);
 ```
 
 a list of entities
 
 ```csharp
-connection.Delete(cars);
+transaction.DeleteAll(cars);
 ```
 
-or _ALL_ entities in the table.
+and our good and friend old cascade
+
+`pay attention` to the external relations with the car class on use of cascade.
 
 ```csharp
-connection.DeleteAll<Car>();
+transaction.DeleteOnCascade<Car>(1);
 ```
 
 Special Attributes
 ----------
-Dapper.Contrib makes use of some optional attributes:
+Dappir makes use of some optional attributes:
 
 * `[Table("Tablename")]` - use another table name instead of the name of the class
 
@@ -142,49 +229,10 @@ Dapper.Contrib makes use of some optional attributes:
     [Table ("emps")]
     public class Employee
     {
-        public int Id { get; set; }
-        public string Name { get; set; }
-    }
-    ```
-* `[Key]` - this property represents a database-generated identity/key
-    
-    ```csharp
-    public class Employee
-    {
-        [Key]
+        [Column(IsPrimaryKey = true)]
         public int EmployeeId { get; set; }
         public string Name { get; set; }
     }
     ```
-* `[ExplicitKey]` - this property represents an explicit identity/key which is 
-  *not* automatically generated by the database 
-
-    ```csharp
-    public class Employee
-    {
-        [ExplicitKey]
-        public Guid EmployeeId { get; set; }
-        public string Name { get; set; }
-    }
-    ```
-* `[Write(true/false)]` -  this property is (not) writeable
-* `[Computed]` - this property is computed and should not be part of updates
-
 Limitations and caveats
 -------
-
-### SQLite
-
-`SQLiteConnection` exposes an `Update` event that clashes with the `Update`
-extension provided by Dapper.Contrib. There are 2 ways to deal with this.
-
-1. Call the `Update` method explicitly from `SqlMapperExtensions`
-
-    ```Csharp
-    SqlMapperExtensions.Update(_conn, new Employee { Id = 1, Name = "Mercedes" });
-    ```
-2. Make the method signature unique by passing a type parameter to `Update`
-
-    ```Csharp
-    connection.Update<Car>(new Car() { Id = 1, Name = "Maruti" });
-    ```

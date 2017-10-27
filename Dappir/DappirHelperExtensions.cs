@@ -141,20 +141,6 @@ namespace Dappir
 
         #region Crud Dapper
 
-        public static void Insert<TModel>(this IDbTransaction transaction, TModel entity) where TModel : IModel
-        {
-            var sql = entity.ToSqlForInsert();
-            entity.SetValuePrimaryKey(transaction.Connection.Query<int>(sql, entity, transaction: transaction).Single());
-        }
-
-        public static void InsertAll<TModel>(this IDbTransaction transaction, IEnumerable<TModel> listEntity) where TModel : IModel
-        {
-            foreach (var item in listEntity)
-            {
-                transaction.Insert(item);
-            }
-        }
-
         public static IEnumerable<TModel> Select<TModel>(this IDbTransaction transaction, object filterDynamic) where TModel : IModel
         {
             var sql = ToSqlForSelectAll<TModel>();
@@ -182,46 +168,72 @@ namespace Dappir
             return transaction.Connection.Query<TModel>(sql, entity, transaction: transaction).SingleOrDefault();
         }
 
-        public static void Update<TModel>(this IDbTransaction transaction, TModel entity) where TModel : IModel
-        {
-            var sql = entity.ToSqlForUpdate();
-            transaction.Connection.Execute(sql, entity, transaction: transaction);
-        }
-
-        public static void UpdateAll<TModel>(this IDbTransaction transaction, IEnumerable<TModel> listEntity) where TModel : IModel
-        {
-            foreach (var item in listEntity)
-            {
-                transaction.Update(item);
-            }
-        }
-
-        public static void Delete<TModel>(this IDbTransaction transaction, int key) where TModel : IModel
-        {
-            var entity = Activator.CreateInstance<TModel>();
-            var sql = entity.ToSqlForDelete();
-            entity.SetValuePrimaryKey(key);
-            transaction.Delete(entity);
-        }
-
-        public static void Delete<TModel>(this IDbTransaction transaction, TModel entity) where TModel : IModel
-        {
-            var sql = entity.ToSqlForDelete();
-            transaction.Connection.Execute(sql, entity, transaction: transaction);
-        }
-
-        public static void DeleteAll<TModel>(this IDbTransaction transaction, IEnumerable<TModel> listEntity) where TModel : IModel
-        {
-            foreach (var item in listEntity)
-            {
-                transaction.Delete(item);
-            }
-        }
-
-        public static IEnumerable<TModel> GetAll<TModel>(this IDbTransaction transaction) where TModel : IModel
+        public static IEnumerable<TModel> SelectAll<TModel>(this IDbTransaction transaction) where TModel : IModel
         {
             var sql = ToSqlForSelectAll<TModel>();
             return transaction.Connection.Query<TModel>(sql, null, transaction: transaction);
+        }
+
+        public static TModel SelectOnCascade<TModel>(this IDbTransaction transaction, int key) where TModel : IModel
+        {
+            var entity = transaction.Select<TModel>(key);
+            return transaction.SelectOnCascade(entity);
+        }
+
+        private static TModel SelectOnCascade<TModel>(this IDbTransaction transaction, TModel entity) where TModel : IModel
+        {
+            var listProperties = entity.GetType().GetProperties().ToList().Where(x => x.GetSetMethod().IsVirtual && x.GetCustomAttributes(true).ToList().Where(z => z is AssociationAttribute).ToList().Count > 0).ToList();
+
+            foreach (var itemProperty in listProperties)
+            {
+                var itemValueProperty = itemProperty.GetValue(entity, null) ?? Activator.CreateInstance(itemProperty.PropertyType);
+
+                if (itemValueProperty is IModel)
+                {
+                    var itemModel = itemValueProperty as IModel;
+                    var primaryKeyParent = entity.GetNamePrimaryKey();
+                    var sql = string.Format(SELECT_ONE_string, GetNameTable(itemModel.GetType()), primaryKeyParent, primaryKeyParent);
+                    itemModel = transaction.Connection.Query(itemModel.GetType(), sql, entity, transaction: transaction, buffered: true, commandTimeout: null, commandType: null).SingleOrDefault() as IModel;
+                    if (itemModel != null) entity.SetValue(itemProperty.Name, transaction.SelectOnCascade(itemModel));
+                    continue;
+                }
+
+                if (itemValueProperty is IEnumerable<IModel>)
+                {
+                    var itensModel = itemValueProperty as IEnumerable<IModel>;
+                    var type = itensModel.GetType().GetGenericArguments()[0];
+                    var itemModel = Activator.CreateInstance(type) as IModel;
+                    var primaryKeyParent = entity.GetNamePrimaryKey();
+                    var sql = string.Format(SELECT_ONE_string, GetNameTable(itemModel.GetType()), primaryKeyParent, primaryKeyParent);
+                    var list = transaction.Connection.Query(itemModel.GetType(), sql, entity, transaction: transaction, buffered: true, commandTimeout: null, commandType: null);
+
+                    if (list != null)
+                    {
+                        foreach (var item in list)
+                        {
+                            var itemValueDb = item as IModel;
+                            transaction.SelectOnCascade(itemValueDb);
+                            itemValueProperty.GetType().InvokeMember("Add", BindingFlags.InvokeMethod, null, itemValueProperty, new object[] { itemValueDb });
+                        }
+                    }
+                }
+            }
+
+            return entity;
+        }
+
+        public static void Insert<TModel>(this IDbTransaction transaction, TModel entity) where TModel : IModel
+        {
+            var sql = entity.ToSqlForInsert();
+            entity.SetValuePrimaryKey(transaction.Connection.Query<int>(sql, entity, transaction: transaction).Single());
+        }
+
+        public static void InsertAll<TModel>(this IDbTransaction transaction, IEnumerable<TModel> listEntity) where TModel : IModel
+        {
+            foreach (var item in listEntity)
+            {
+                transaction.Insert(item);
+            }
         }
 
         public static void InsertOnCascade<TModel>(this IDbTransaction transaction, TModel entity) where TModel : IModel
@@ -255,6 +267,20 @@ namespace Dappir
                         transaction.InsertOnCascade(itemModel);
                     }
                 }
+            }
+        }
+
+        public static void Update<TModel>(this IDbTransaction transaction, TModel entity) where TModel : IModel
+        {
+            var sql = entity.ToSqlForUpdate();
+            transaction.Connection.Execute(sql, entity, transaction: transaction);
+        }
+
+        public static void UpdateAll<TModel>(this IDbTransaction transaction, IEnumerable<TModel> listEntity) where TModel : IModel
+        {
+            foreach (var item in listEntity)
+            {
+                transaction.Update(item);
             }
         }
 
@@ -317,52 +343,26 @@ namespace Dappir
             }
         }
 
-        public static TModel SelectOnCascade<TModel>(this IDbTransaction transaction, int key) where TModel : IModel
+        public static void Delete<TModel>(this IDbTransaction transaction, int key) where TModel : IModel
         {
-            var entity = transaction.Select<TModel>(key);
-            return transaction.SelectOnCascade(entity);
+            var entity = Activator.CreateInstance<TModel>();
+            var sql = entity.ToSqlForDelete();
+            entity.SetValuePrimaryKey(key);
+            transaction.Delete(entity);
         }
 
-        private static TModel SelectOnCascade<TModel>(this IDbTransaction transaction, TModel entity) where TModel : IModel
+        public static void Delete<TModel>(this IDbTransaction transaction, TModel entity) where TModel : IModel
         {
-            var listProperties = entity.GetType().GetProperties().ToList().Where(x => x.GetSetMethod().IsVirtual && x.GetCustomAttributes(true).ToList().Where(z => z is AssociationAttribute).ToList().Count > 0).ToList();
+            var sql = entity.ToSqlForDelete();
+            transaction.Connection.Execute(sql, entity, transaction: transaction);
+        }
 
-            foreach (var itemProperty in listProperties)
+        public static void DeleteAll<TModel>(this IDbTransaction transaction, IEnumerable<TModel> listEntity) where TModel : IModel
+        {
+            foreach (var item in listEntity)
             {
-                var itemValueProperty = itemProperty.GetValue(entity, null) ?? Activator.CreateInstance(itemProperty.PropertyType);
-
-                if (itemValueProperty is IModel)
-                {
-                    var itemModel = itemValueProperty as IModel;
-                    var primaryKeyParent = entity.GetNamePrimaryKey();
-                    var sql = string.Format(SELECT_ONE_string, GetNameTable(itemModel.GetType()), primaryKeyParent, primaryKeyParent);
-                    itemModel = transaction.Connection.Query(itemModel.GetType(), sql, entity, transaction: transaction, buffered: true, commandTimeout: null, commandType: null).SingleOrDefault() as IModel;
-                    if (itemModel != null) entity.SetValue(itemProperty.Name, transaction.SelectOnCascade(itemModel));
-                    continue;
-                }
-
-                if (itemValueProperty is IEnumerable<IModel>)
-                {
-                    var itensModel = itemValueProperty as IEnumerable<IModel>;
-                    var type = itensModel.GetType().GetGenericArguments()[0];
-                    var itemModel = Activator.CreateInstance(type) as IModel;
-                    var primaryKeyParent = entity.GetNamePrimaryKey();
-                    var sql = string.Format(SELECT_ONE_string, GetNameTable(itemModel.GetType()), primaryKeyParent, primaryKeyParent);
-                    var list = transaction.Connection.Query(itemModel.GetType(), sql, entity, transaction: transaction, buffered: true, commandTimeout: null, commandType: null);
-
-                    if (list != null)
-                    {
-                        foreach (var item in list)
-                        {
-                            var itemValueDb = item as IModel;
-                            transaction.SelectOnCascade(itemValueDb);
-                            itemValueProperty.GetType().InvokeMember("Add", BindingFlags.InvokeMethod, null, itemValueProperty, new object[] { itemValueDb });
-                        }
-                    }
-                }
+                transaction.Delete(item);
             }
-
-            return entity;
         }
 
         public static void DeleteOnCascade<TModel>(this IDbTransaction transaction, int key) where TModel : IModel
