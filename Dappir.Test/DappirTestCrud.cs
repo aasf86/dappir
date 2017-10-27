@@ -242,6 +242,7 @@ namespace Dappir.Test
                         throw exc;
                     }
                 }
+                connection.Close();
             }
         }
     }
