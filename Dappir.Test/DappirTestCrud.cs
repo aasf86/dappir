@@ -121,7 +121,7 @@ namespace Dappir.Test
 
                 trans.UpdateOnCascade(pedido);
 
-                pedidoEditadoNoBanco = trans.Select<Pedido>(1);
+                pedidoEditadoNoBanco = trans.SelectOnCascade<Pedido>(1);
 
             });
 
