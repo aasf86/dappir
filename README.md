@@ -132,7 +132,11 @@ Insert one entity
 ```csharp
 var car = new Car { Name = "520" };
 car.Maker = new Carmaker { "Volvo" };
-car.Dealerships = new List<Dealership> { new Dealership { Name = "Veronica Vehicles" }, new Dealership { Name = "Heavy Loader Trucks" } };
+car.Dealerships = new List<Dealership> 
+{ 
+    new Dealership { Name = "Veronica Vehicles" }, 
+    new Dealership { Name = "Heavy Loader Trucks" } 
+};
 
 transaction.Insert(car);
 
@@ -151,7 +155,11 @@ or a list of entities.
 ```csharp
 var car = new Car { Name = "520" };
 car.Maker = new Carmaker { "Volvo" };
-car.Dealerships = new List<Dealership> { new Dealership { Name = "Veronica Vehicles" }, new Dealership { Name = "Heavy Loader Trucks" } };
+car.Dealerships = new List<Dealership> 
+{ 
+    new Dealership { Name = "Veronica Vehicles" }, 
+    new Dealership { Name = "Heavy Loader Trucks" } 
+};
 
 transaction.Insert(car);
 
