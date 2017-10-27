@@ -301,6 +301,8 @@ namespace Dappir
                         modeItemList = item;
                     }
 
+                    modeItemList = modeItemList ?? Activator.CreateInstance(itensModel.GetType().GetGenericArguments()[0]) as IModel;
+
                     var sql = string.Format(DELETE_ALL_string, GetNameTable(modeItemList.GetType()))
                         + " where "
                         + entity.GetNamePrimaryKey()

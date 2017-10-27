@@ -68,7 +68,7 @@ namespace Dappir.Test
                 trans.InsertOnCascade(pedido);
             });
 
-            Assert.IsTrue(pedido.PedidoId > 0 && pedido.Entrega.EnderecoId > 0 && pedido.ItensPedido.Sum(x=>x.PedidoItemId) > 0);
+            Assert.IsTrue(pedido.PedidoId > 0 && pedido.Entrega.EnderecoId > 0 && pedido.ItensPedido.Sum(x => x.PedidoItemId) > 0);
         }
 
         [TestMethod]
@@ -103,7 +103,121 @@ namespace Dappir.Test
             });          
 
             Assert.IsTrue(pedidoEditadoNoBanco.Descricao.Contains(guid));
-        }        
+        }
+
+        [TestMethod]
+        public void Update_on_cascade_entity()
+        {
+            Pedido pedido = null;
+            Pedido pedidoEditadoNoBanco = null;
+            var guid = Guid.NewGuid().ToString();
+
+            CommandDB((trans) =>
+            {
+                pedido = trans.SelectOnCascade<Pedido>(1);
+                pedido.Descricao += " => " + guid;
+                pedido.Entrega.Localizacao += " => " + guid;
+                pedido.ItensPedido.ForEach(x => x.Descricao += " => " + guid);
+
+                trans.UpdateOnCascade(pedido);
+
+                pedidoEditadoNoBanco = trans.Select<Pedido>(1);
+
+            });
+
+            Assert.IsTrue(pedidoEditadoNoBanco.Descricao.Contains(guid) && pedidoEditadoNoBanco.Entrega.Localizacao.Contains(guid) && pedidoEditadoNoBanco.ItensPedido.Exists(x => x.Descricao.Contains(guid)));
+        }
+
+        [TestMethod]
+        public void Update_on_cascade_remove_all_itens_entity()
+        {
+            Pedido pedido = null;
+            Pedido pedidoEditadoNoBanco = null;
+            var guid = Guid.NewGuid().ToString();
+
+            CommandDB((trans) =>
+            {
+                pedido = trans.SelectOnCascade<Pedido>(1);
+                pedido.Descricao += " => " + guid;
+                pedido.Entrega.Localizacao += " => " + guid;
+
+                pedido.ItensPedido.Clear();
+
+                trans.UpdateOnCascade(pedido);
+
+                pedidoEditadoNoBanco = trans.SelectOnCascade<Pedido>(1);
+            });
+
+            Assert.IsTrue(pedidoEditadoNoBanco.Descricao.Contains(guid) && pedidoEditadoNoBanco.Entrega.Localizacao.Contains(guid) && pedidoEditadoNoBanco.ItensPedido.Count == 0);
+        }
+
+        [TestMethod]
+        public void Update_only_itens()
+        {
+            List<PedidoItem> itens = null;
+            List<PedidoItem> itensEditados = null;
+            var guid = Guid.NewGuid().ToString();
+
+            CommandDB((trans) =>
+            {
+                itens = trans.Select<PedidoItem>(new { PedidoId = 3 }).ToList();
+
+                itens.ForEach(x => x.Descricao += " => " + guid);
+
+                trans.UpdateAll(itens);
+
+                itensEditados = trans.Select<PedidoItem>(new { PedidoId = 3 }).ToList();
+            });
+
+            Assert.IsTrue(itensEditados.Exists(x => x.Descricao.Contains(guid)));
+        }
+
+        [TestMethod]
+        public void Update_address()
+        {
+            Endereco endereco = null;
+            Endereco enderecoEditado = null;
+
+            var guid = Guid.NewGuid().ToString();
+
+            CommandDB((trans) =>
+            {
+                endereco = trans.Select<Endereco>(new { PedidoId = 3 }).SingleOrDefault();
+
+                endereco.Localizacao += " => " + guid;
+
+                trans.Update(endereco);
+
+                enderecoEditado = trans.Select<Endereco>(new { PedidoId = 3 }).SingleOrDefault();
+            });
+
+            Assert.IsTrue(enderecoEditado.Localizacao.Contains(guid));
+        }
+
+        [TestMethod]
+        public void Delete_item_from_pedido()
+        {
+            Pedido pedido = null;
+            Pedido pedidoEditado = null;
+            var guid = Guid.NewGuid().ToString();
+            var countDb = 0;
+
+            CommandDB((trans) =>
+            {
+                pedido = trans.SelectOnCascade<Pedido>(3);
+
+                countDb = pedido.ItensPedido.Count - 1;
+
+                pedido.ItensPedido.RemoveAt(0);
+
+                trans.UpdateOnCascade(pedido);
+
+                pedidoEditado = trans.SelectOnCascade<Pedido>(3);
+
+            });
+
+            Assert.IsTrue(countDb == pedidoEditado.ItensPedido.Count);
+        }
 
         public void CommandDB(Action<IDbTransaction> cmd)
         {
