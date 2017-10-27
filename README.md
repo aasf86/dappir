@@ -1,7 +1,7 @@
 Dappir - more extensions for dapper
 ===========================================
 
-`=>`This is a small tribute to our developer department DAPI, because the name Dappir: Dapper + Dapi = Dappir. [DAPI](http://wikicti.tjmt.jus.br/index.php/Departamento_de_Sistemas_e_Aplica%C3%A7%C3%B5es_-_DSA)
+`=>`This is a small tribute to our developer department DAPI; Why the name Dappir?: Dapper + Dapi = Dappir. [Departamento de Aprimoramento da Primeira Instância - DAPI](http://wikicti.tjmt.jus.br/index.php?title=Departamento_de_Aprimoramento_da_Primeira_Inst%C3%A2ncia_-_DAPI)
 
 Features
 --------
