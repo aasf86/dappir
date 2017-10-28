@@ -4,7 +4,7 @@ Dappir - more extensions for dapper
 [nuget](https://www.nuget.org/packages/Dappir/)
 
 ```powershell
-PM> Install-Package Dappir -Version 1.0.1
+PM> Install-Package Dappir
 ```
 
 `=>`This is a small tribute to our developer department DAPI; Why the name Dappir?: Dapper + Dapi = Dappir. [Departamento de Aprimoramento da Primeira Instância - DAPI](http://wikicti.tjmt.jus.br/index.php?title=Departamento_de_Aprimoramento_da_Primeira_Inst%C3%A2ncia_-_DAPI)
