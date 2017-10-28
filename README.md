@@ -55,7 +55,7 @@ For these extensions to work, the entity in question _MUST_ have a
 key property decorate with [Column(IsPrimaryKey = true)].
 
 ```csharp
-public class Car
+public class Car : IModel
 {
     [Column(IsPrimaryKey = true)]
     public int CarId { get; set; }
@@ -66,7 +66,7 @@ public class Car
 For your entity working with cascade, you must decorate yours property on `[Association]`.
 
 ```csharp
-public class Car
+public class Car : IModel
 {
     [Column(IsPrimaryKey = true)]
     public int CarId { get; set; }
@@ -79,7 +79,7 @@ public class Car
     public List<Dealership> Dealerships { get; set; }
 }
 
-public class Carmaker
+public class Carmaker : IModel
 {
     [Column(IsPrimaryKey = true)]
     public int CarmakerId { get; set; }
@@ -87,7 +87,7 @@ public class Carmaker
     public string Name { get; set; }
 }
 
-public class Dealership
+public class Dealership : IModel
 {
     [Column(IsPrimaryKey = true)]
     public int DealershipsId { get; set; }
@@ -247,7 +247,7 @@ Dappir makes use of some optional attributes:
 
     ```csharp
     [Table ("emps")]
-    public class Employee
+    public class Employee : IModel
     {
         [Column(IsPrimaryKey = true)]
         public int EmployeeId { get; set; }
