@@ -114,7 +114,7 @@ namespace Dappir.Test
 
             CommandDB((trans) =>
             {
-                pedido = trans.SelectOnCascade<Pedido>(1);
+                pedido = trans.SelectOnCascade<Pedido>(4);
                 pedido.Descricao += " => " + guid;
                 pedido.Entrega.Localizacao += " => " + guid;
                 pedido.ItensPedido.ForEach(x => x.Descricao += " => " + guid);
@@ -137,7 +137,7 @@ namespace Dappir.Test
 
             CommandDB((trans) =>
             {
-                pedido = trans.SelectOnCascade<Pedido>(1);
+                pedido = trans.SelectOnCascade<Pedido>(4);
                 pedido.Descricao += " => " + guid;
                 pedido.Entrega.Localizacao += " => " + guid;
 
