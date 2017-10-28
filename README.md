@@ -254,5 +254,3 @@ Dappir makes use of some optional attributes:
         public string Name { get; set; }
     }
     ```
-Limitations and caveats
--------
