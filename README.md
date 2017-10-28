@@ -254,3 +254,5 @@ Dappir makes use of some optional attributes:
         public string Name { get; set; }
     }
     ```
+`if dependencies do not resolve correctly, copy and paste the `DappirHelperExtensions` class into your project`
+-------    
