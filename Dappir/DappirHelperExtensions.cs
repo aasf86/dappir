@@ -157,7 +157,7 @@ namespace Dappir
             if (!string.IsNullOrEmpty(sqlFilter))
                 sqlFilter = " where " + sqlFilter;
 
-            return transaction.Connection.Query<TModel>(sql + sqlFilter, filterDynamic, transaction: transaction);
+            return transaction.Connection.Query<TModel>(sql: sql + sqlFilter, param: filterDynamic, transaction: transaction);
         }
 
         public static TModel Select<TModel>(this IDbTransaction transaction, int key) where TModel : IModel
@@ -193,20 +193,19 @@ namespace Dappir
                     var itemModel = itemValueProperty as IModel;
                     var primaryKeyParent = entity.GetNamePrimaryKey();
                     var sql = string.Format(SELECT_ONE_string, GetNameTable(itemModel.GetType()), primaryKeyParent, primaryKeyParent);
-                    itemModel = transaction.Connection.Query(itemModel.GetType(), sql, entity, transaction: transaction, buffered: true, commandTimeout: null, commandType: null).SingleOrDefault() as IModel;
+                    itemModel = transaction.Connection.Query(type: itemModel.GetType(), sql: sql, param: entity, transaction: transaction, buffered: true, commandTimeout: null, commandType: null).SingleOrDefault() as IModel;
                     if (itemModel != null) entity.SetValue(itemProperty.Name, transaction.SelectOnCascade(itemModel));
                     continue;
                 }
-
-                //if (itemValueProperty is List<IModel>)
-                if(itemProperty.PropertyType.FullName.Contains("System.Collections.Generic."))
+                
+                if(itemValueProperty is IEnumerable<IModel>)
                 {
-                    var itensModel = itemValueProperty;// as IEnumerable<IModel>;
+                    var itensModel = itemValueProperty as IEnumerable<IModel>;
                     var type = itensModel.GetType().GetGenericArguments()[0];
                     var itemModel = Activator.CreateInstance(type) as IModel;
                     var primaryKeyParent = entity.GetNamePrimaryKey();
                     var sql = string.Format(SELECT_ONE_string, GetNameTable(itemModel.GetType()), primaryKeyParent, primaryKeyParent);
-                    var list = transaction.Connection.Query(itemModel.GetType(), sql, entity, transaction: transaction, buffered: true, commandTimeout: null, commandType: null);
+                    var list = transaction.Connection.Query(type: itemModel.GetType(), sql: sql, param: entity, transaction: transaction, buffered: true, commandTimeout: null, commandType: null);
 
                     if (list != null)
                     {

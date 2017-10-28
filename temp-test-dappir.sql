@@ -1,21 +1,25 @@
+--drop table Endereco;
+--drop table PedidoItem;
+--drop table Pedido;
+
 create table Pedido
 (
 	PedidoId int not null primary key identity,
-	Descricao varchar(500)
+	Descricao varchar(max)
 );
 
 create table Endereco
 (
 	EnderecoId int not null primary key identity,
 	PedidoId  int not null references Pedido(PedidoId),
-	Localizacao varchar(500)
+	Localizacao varchar(max)
 );
 
 create table PedidoItem
 (
 	PedidoItemId int not null primary key identity,
 	PedidoId  int not null references Pedido(PedidoId),
-	Descricao varchar(500)
+	Descricao varchar(max)
 );
 
 select * from Pedido;

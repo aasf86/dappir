@@ -60,11 +60,19 @@ namespace Dappir.Test
 
             pedido.Entrega.Localizacao = "minha casa";
 
-            pedido.ItensPedido.Add(new PedidoItem { Descricao="coca cola" });
+            pedido.ItensPedido.Add(new PedidoItem { Descricao = "coca cola" });
             pedido.ItensPedido.Add(new PedidoItem { Descricao = "pizza grande tamanho familia" });
 
-            CommandDB((trans) => 
+            CommandDB((trans) =>
             {
+                for (int i = 0; i < 20; i++)
+                {
+                    trans.InsertOnCascade(pedido);
+                    pedido.PedidoId = 0;
+                    pedido.Entrega.EnderecoId = 0;
+                    pedido.ItensPedido.ForEach(x => x.PedidoItemId = 0);
+                }
+
                 trans.InsertOnCascade(pedido);
             });
 
@@ -76,7 +84,7 @@ namespace Dappir.Test
         {
             Pedido pedido = null;
 
-            CommandDB((trans) => 
+            CommandDB((trans) =>
             {
                 pedido = trans.Select<Pedido>(1);
             });
@@ -100,7 +108,7 @@ namespace Dappir.Test
 
                 pedidoEditadoNoBanco = trans.Select<Pedido>(1);
 
-            });          
+            });
 
             Assert.IsTrue(pedidoEditadoNoBanco.Descricao.Contains(guid));
         }
@@ -114,14 +122,14 @@ namespace Dappir.Test
 
             CommandDB((trans) =>
             {
-                pedido = trans.SelectOnCascade<Pedido>(4);
+                pedido = trans.SelectOnCascade<Pedido>(5);
                 pedido.Descricao += " => " + guid;
                 pedido.Entrega.Localizacao += " => " + guid;
                 pedido.ItensPedido.ForEach(x => x.Descricao += " => " + guid);
 
                 trans.UpdateOnCascade(pedido);
 
-                pedidoEditadoNoBanco = trans.SelectOnCascade<Pedido>(1);
+                pedidoEditadoNoBanco = trans.SelectOnCascade<Pedido>(5);
 
             });
 
@@ -137,7 +145,7 @@ namespace Dappir.Test
 
             CommandDB((trans) =>
             {
-                pedido = trans.SelectOnCascade<Pedido>(4);
+                pedido = trans.SelectOnCascade<Pedido>(6);
                 pedido.Descricao += " => " + guid;
                 pedido.Entrega.Localizacao += " => " + guid;
 
@@ -145,7 +153,7 @@ namespace Dappir.Test
 
                 trans.UpdateOnCascade(pedido);
 
-                pedidoEditadoNoBanco = trans.SelectOnCascade<Pedido>(1);
+                pedidoEditadoNoBanco = trans.SelectOnCascade<Pedido>(6);
             });
 
             Assert.IsTrue(pedidoEditadoNoBanco.Descricao.Contains(guid) && pedidoEditadoNoBanco.Entrega.Localizacao.Contains(guid) && pedidoEditadoNoBanco.ItensPedido.Count == 0);
@@ -182,13 +190,13 @@ namespace Dappir.Test
 
             CommandDB((trans) =>
             {
-                endereco = trans.Select<Endereco>(new { PedidoId = 3 }).SingleOrDefault();
+                endereco = trans.Select<Endereco>(new { PedidoId = 8 }).SingleOrDefault();
 
                 endereco.Localizacao += " => " + guid;
 
                 trans.Update(endereco);
 
-                enderecoEditado = trans.Select<Endereco>(new { PedidoId = 3 }).SingleOrDefault();
+                enderecoEditado = trans.Select<Endereco>(new { PedidoId = 8 }).SingleOrDefault();
             });
 
             Assert.IsTrue(enderecoEditado.Localizacao.Contains(guid));
@@ -204,7 +212,7 @@ namespace Dappir.Test
 
             CommandDB((trans) =>
             {
-                pedido = trans.SelectOnCascade<Pedido>(3);
+                pedido = trans.SelectOnCascade<Pedido>(10);
 
                 countDb = pedido.ItensPedido.Count - 1;
 
@@ -212,7 +220,7 @@ namespace Dappir.Test
 
                 trans.UpdateOnCascade(pedido);
 
-                pedidoEditado = trans.SelectOnCascade<Pedido>(3);
+                pedidoEditado = trans.SelectOnCascade<Pedido>(10);
 
             });
 
