@@ -198,9 +198,10 @@ namespace Dappir
                     continue;
                 }
 
-                if (itemValueProperty is IEnumerable<IModel>)
+                //if (itemValueProperty is List<IModel>)
+                if(itemProperty.PropertyType.FullName.Contains("System.Collections.Generic."))
                 {
-                    var itensModel = itemValueProperty as IEnumerable<IModel>;
+                    var itensModel = itemValueProperty;// as IEnumerable<IModel>;
                     var type = itensModel.GetType().GetGenericArguments()[0];
                     var itemModel = Activator.CreateInstance(type) as IModel;
                     var primaryKeyParent = entity.GetNamePrimaryKey();
