@@ -39,6 +39,12 @@ namespace Dappir
             return typeModel.Name;
         }
 
+        private static string GetNamePrimaryKey(Type typeModel)
+        {
+            var model = Activator.CreateInstance(typeModel) as IModel;
+            return model.GetNamePrimaryKey();
+        }
+
         private static string GetNamePrimaryKey(this IModel model)
         {
             var propertyPrimaryKey = model.GetType().GetProperties().Where(x => x.GetCustomAttributes(true).ToList().Exists(z => { return z is ColumnAttribute && (z as ColumnAttribute).IsPrimaryKey; })).FirstOrDefault();
@@ -311,7 +317,6 @@ namespace Dappir
                 {
                     var itensModel = itemValueProperty as IEnumerable<IModel>;
                     var idsDontRemove = "0,";
-                    IModel modeItemList = null;
 
                     foreach (var item in itensModel)
                     {
@@ -324,18 +329,17 @@ namespace Dappir
                             transaction.UpdateOnCascade(itemModel);
 
                         idsDontRemove += item.GetValuePrimaryKey() + ",";
-                        modeItemList = item;
                     }
 
-                    modeItemList = modeItemList ?? Activator.CreateInstance(itensModel.GetType().GetGenericArguments()[0]) as IModel;
+                    var typeItem = itemProperty.PropertyType.GetGenericArguments()[0];
 
-                    var sql = string.Format(DELETE_ALL_string, GetNameTable(modeItemList.GetType()))
+                    var sql = string.Format(DELETE_ALL_string, GetNameTable(typeItem))
                         + " where "
                         + entity.GetNamePrimaryKey()
                         + " = "
                         + entity.GetValuePrimaryKey()
                         + " and  "
-                        + modeItemList.GetNamePrimaryKey()
+                        + GetNamePrimaryKey(typeItem)
                         + " not in (" + idsDontRemove.TrimEnd(',') + ")";
 
                     transaction.Connection.Execute(sql, null, transaction: transaction);
