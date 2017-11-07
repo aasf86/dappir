@@ -212,7 +212,7 @@ namespace Dappir.Test
 
             CommandDB((trans) =>
             {
-                pedido = trans.SelectOnCascade<Pedido>(10);
+                pedido = trans.SelectOnCascade<Pedido>(13);
 
                 countDb = pedido.ItensPedido.Count - 1;
 
@@ -220,7 +220,7 @@ namespace Dappir.Test
 
                 trans.UpdateOnCascade(pedido);
 
-                pedidoEditado = trans.SelectOnCascade<Pedido>(10);
+                pedidoEditado = trans.SelectOnCascade<Pedido>(13);
 
             });
 
