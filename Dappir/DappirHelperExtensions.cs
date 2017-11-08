@@ -25,7 +25,7 @@ namespace Dappir
 
         private static List<PropertyInfo> GetColumnWithOutKey(this Type type)
         {
-            return type.GetProperties().Where(x => x.Name.ToUpper() != "ID" && (!x.GetSetMethod().IsVirtual || x.PropertyType.FullName.Contains("System.Guid")) && !x.GetCustomAttributes(true).ToList().Exists(z => { return z is ColumnAttribute && (z as ColumnAttribute).IsPrimaryKey; })).ToList();
+            return type.GetProperties().Where(x => !x.GetCustomAttributes(true).ToList().Exists(z => { return z is ColumnAttribute && (z as ColumnAttribute).IsPrimaryKey; })).ToList();
         }
 
         private static string GetNameTable(Type typeModel)
